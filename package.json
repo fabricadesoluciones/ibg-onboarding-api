@@ -1,0 +1,43 @@
+{
+  "name": "ibg-onboarding-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "seed:admin": "node src/seeders/runSeedDevAdmin.js",
+    "repair:auth-paranoid": "node src/scripts/repairAuthParanoidTables.js",
+    "db:migrate": "sequelize-cli db:migrate --config config/config.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.1061.0",
+    "@aws-sdk/client-sesv2": "^3.1063.0",
+    "axios": "^1.17.0",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-validator": "^7.0.1",
+    "fs": "^0.0.1-security",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "multer": "^2.2.0",
+    "mysql2": "^3.20.0",
+    "nodemailer": "^8.0.7",
+    "sequelize": "^6.37.8",
+    "sequelize-cli": "^6.6.2",
+    "serverless-http": "^3.2.0",
+    "swagger-ui-express": "^5.0.0",
+    "uuid": "^9.0.1"
+  },
+  "optionalDependencies": {
+    "form-data": "^4.0.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

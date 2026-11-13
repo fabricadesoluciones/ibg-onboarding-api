@@ -1,0 +1,67 @@
+name: Deploy Backend DEV
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Configurar Credenciales AWS (Con AssumeRole)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-duration-seconds: 3600
+          role-skip-session-tagging: true
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Instalar Serverless Framework (Version 3 libre)
+        run: npm install -g serverless@3
+
+      - name: Desplegar a AWS
+        env:
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PWD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ vars.DB_NAME }}
+          JWT_SECRETS: ${{ secrets.JWT_SECRETS }}
+          PUBLIC_API_KEY: ${{ secrets.PUBLIC_API_KEY }}
+          MFA_FORCE_FOR_ALL: ${{ vars.MFA_FORCE_FOR_ALL }}
+          MFA_CODE_EXPIRES_IN_MINUTES: ${{ vars.MFA_CODE_EXPIRES_IN_MINUTES }}
+          MFA_EMAIL_ENABLED: ${{ vars.MFA_EMAIL_ENABLED }}
+          SMTP_HOST: ${{ vars.SMTP_HOST }}
+          SMTP_PORT: ${{ vars.SMTP_PORT }}
+          SMTP_SECURE: ${{ vars.SMTP_SECURE }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM: ${{ vars.SMTP_FROM }}
+          SEND_EMAIL_TEST: ${{ vars.SEND_EMAIL_TEST }}
+          SEND_EMAIL_TEST_TO: ${{ vars.SEND_EMAIL_TEST_TO }}
+          PROVIDER_PORTAL_URL: ${{ vars.PROVIDER_PORTAL_URL }}
+          PASSWORD_RESET_TOKEN_EXPIRES_IN_MINUTES: ${{ vars.PASSWORD_RESET_TOKEN_EXPIRES_IN_MINUTES }}
+          APP_REGION: ${{ vars.APP_REGION }}
+          ENTRA_CLIENT_ID: ${{ secrets.ENTRA_CLIENT_ID }}
+          ENTRA_TENANT_ID: ${{ secrets.ENTRA_TENANT_ID }}
+          ENTRA_CLIENT_SECRET: ${{ secrets.ENTRA_CLIENT_SECRET }}
+          ENTRA_REDIRECT_URI: ${{ vars.ENTRA_REDIRECT_URI }}
+        run: serverless deploy --stage dev

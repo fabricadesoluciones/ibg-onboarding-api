@@ -1,0 +1,8 @@
+node_modules/
+migrations/
+postman/
+.env
+logs/*
+logs/app.log
+logs/error.log
+logs
