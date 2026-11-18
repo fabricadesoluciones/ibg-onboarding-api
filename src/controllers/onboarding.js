@@ -168,6 +168,8 @@ const submitMyRequest = async (req, res, next) => {
     }
 
     await request.update({ status: "submitted" });
+    // El usuario proveedor sólo pasa a activo cuando entregó toda la prealta.
+    await User.update({ status: "active" }, { where: { id: request.user_id } });
     return res.json({ code: 1, message: "Prealta enviada para revisión.", data: { id: request.id, status: request.status } });
   } catch (error) { next(error); }
 };
