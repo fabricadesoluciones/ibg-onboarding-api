@@ -813,6 +813,63 @@ const migrateAuditLogs = asyncHandler(async (req, res) => {
   }
 });
 
+const migrateUserRoles = asyncHandler(async (req, res) => {
+  if (!isDevelopmentEnvironment()) {
+    throw new AppError(
+      "Las migraciones por endpoint solo se pueden ejecutar en entornos de desarrollo/local",
+      403
+    );
+  }
+
+  if (migrationInProgress) {
+    return res.status(409).json({
+      code: 0,
+      warning: true,
+      message: "Ya hay una ejecucion de migraciones en curso",
+    });
+  }
+
+  migrationInProgress = true;
+
+  try {
+    const migrationFileName = "20261118190000-create-user-roles.js";
+    const { stdout, stderr } = await runSpecificMigration(migrationFileName);
+    const output = [stdout, stderr].filter(Boolean).join("\n").trim();
+
+    logger.info("User roles migration executed from endpoint", {
+      method: req.method,
+      url: req.originalUrl,
+      migrationFileName,
+    });
+
+    return res.status(200).json({
+      code: 1,
+      message: "Migracion de user_roles ejecutada correctamente",
+      data: { migration: migrationFileName, output },
+    });
+  } catch (error) {
+    const output = [error.stdout, error.stderr]
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+
+    logger.warn("User roles migration failed from endpoint", {
+      method: req.method,
+      url: req.originalUrl,
+      message: error.message,
+    });
+
+    return res.status(200).json({
+      code: 0,
+      warning: true,
+      message: "Advertencia: no se pudo ejecutar la migracion de user_roles",
+      details: { error: error.message, output: output || null },
+    });
+  } finally {
+    migrationInProgress = false;
+  }
+});
+
 module.exports = {
   migrateDatabase,
   migrateRolePermissions,
@@ -825,4 +882,5 @@ module.exports = {
   migrateOrganizationalCatalogsAndRoleScope,
   migrateUsersRoleOptional,
   migrateAuditLogs,
+  migrateUserRoles,
 };

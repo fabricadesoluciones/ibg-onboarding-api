@@ -13,6 +13,7 @@ const {
   migrateOrganizationalCatalogsAndRoleScope,
   migrateUsersRoleOptional,
   migrateAuditLogs,
+  migrateUserRoles,
 } = require("../controllers/dev");
 
 router.post("/migrate", migrateDatabase);
@@ -26,5 +27,6 @@ router.post("/migrate-session-jwt-token-length", migrateSessionJwtTokenLength);
 router.post("/migrate-organizational-catalogs-role-scope", migrateOrganizationalCatalogsAndRoleScope);
 router.post("/migrate-users-role-optional", migrateUsersRoleOptional);
 router.post("/migrate-audit-logs", migrateAuditLogs);
+router.post("/migrate-user-roles", migrateUserRoles);
 
 module.exports = router;
