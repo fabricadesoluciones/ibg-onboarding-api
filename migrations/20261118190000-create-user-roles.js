@@ -6,11 +6,21 @@
  */
 module.exports = {
   async up(queryInterface, Sequelize) {
+    const tables = await queryInterface.showAllTables();
+    if (tables.map((table) => String(table).toLowerCase()).includes('user_roles')) {
+      return;
+    }
+
     await queryInterface.createTable('user_roles', {
+      id: {
+        type: Sequelize.BIGINT.UNSIGNED,
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+      },
       user_id: {
         type: Sequelize.BIGINT.UNSIGNED,
         allowNull: false,
-        primaryKey: true,
         references: {
           model: 'users',
           key: 'id',
@@ -21,7 +31,6 @@ module.exports = {
       role_id: {
         type: Sequelize.BIGINT.UNSIGNED,
         allowNull: false,
-        primaryKey: true,
         references: {
           model: 'roles',
           key: 'id',
@@ -39,6 +48,11 @@ module.exports = {
         allowNull: false,
         defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
       },
+    });
+
+    await queryInterface.addIndex('user_roles', ['user_id', 'role_id'], {
+      unique: true,
+      name: 'user_roles_unique_user_role',
     });
   },
 

@@ -3,6 +3,7 @@ node_modules/
 # reparar la tabla requerida por autenticación en DEV.
 migrations/*
 !migrations/20261118190000-create-user-roles.js
+!migrations/20261118191000-add-id-to-user-roles.js
 postman/
 .env
 logs/*

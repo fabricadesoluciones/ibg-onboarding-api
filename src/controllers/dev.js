@@ -832,7 +832,7 @@ const migrateUserRoles = asyncHandler(async (req, res) => {
   migrationInProgress = true;
 
   try {
-    const migrationFileName = "20261118190000-create-user-roles.js";
+    const migrationFileName = "20261118191000-add-id-to-user-roles.js";
     const { stdout, stderr } = await runSpecificMigration(migrationFileName);
     const output = [stdout, stderr].filter(Boolean).join("\n").trim();
 
