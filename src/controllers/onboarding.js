@@ -68,6 +68,13 @@ const getActiveContract = (requestId) => OnboardingDocument.findOne({
 
 const getOwnedRequest = (requestId, userId) => OnboardingRequest.findOne({ where: { id: requestId, user_id: userId } });
 
+const requiredDocumentTypes = (request) => {
+  if (request.scope === "internacional") return ["incorp", "ine", "domicilio", "taxcert", "bank"];
+  if (request.person_type === "fisica") return ["csf", "ine", "edocta", "opinion", "domicilio"];
+  if (request.person_type === "gob") return ["valrfc", "cuenta", "csf", "edocta"];
+  return ["csf", "edocta", "ine", "domicilio", "poder", "acta", "opinion"];
+};
+
 const getCfoRoleIds = async () => {
   const configured = String(process.env.CFO_ROLE_IDS || "").split(",").map((id) => Number(id.trim())).filter(Number.isFinite);
   if (configured.length) return configured;
@@ -138,6 +145,30 @@ const saveDocument = async (req, res, next) => {
     if (stringValue(req.body.validUntil) && stringValue(req.body.validFrom) && req.body.validUntil < req.body.validFrom) return fail(res, "La vigencia final no puede ser anterior a la inicial.");
     const document = await OnboardingDocument.create({ onboarding_request_id: request.id, document_type: documentType, original_name: req.file?.originalname || null, file_path: req.file ? `/storage/onboarding/${path.basename(req.file.filename)}` : null, mime_type: req.file?.mimetype || null, file_size: req.file?.size || null, valid_from: notApplicable ? null : req.body.validFrom, valid_until: notApplicable || isIndefinite ? null : req.body.validUntil, is_indefinite: notApplicable ? false : isIndefinite, not_applicable: notApplicable, not_applicable_reason: notApplicable ? stringValue(req.body.notApplicableReason) : null });
     return res.status(201).json({ code: 1, message: "Documento guardado correctamente.", data: document });
+  } catch (error) { next(error); }
+};
+
+const submitMyRequest = async (req, res, next) => {
+  try {
+    const request = await getOwnedRequest(req.params.requestId, req.user.id);
+    if (!request) return fail(res, "La solicitud no existe o no pertenece al usuario autenticado.", 404);
+
+    const documents = await OnboardingDocument.findAll({
+      where: { onboarding_request_id: request.id },
+      attributes: ["document_type", "file_path", "not_applicable", "is_blocked"],
+    });
+    const missing = requiredDocumentTypes(request).filter((documentType) => !documents.some((document) =>
+      document.document_type === documentType &&
+      !document.not_applicable &&
+      !document.is_blocked &&
+      Boolean(document.file_path)
+    ));
+    if (missing.length) {
+      return fail(res, `Faltan documentos obligatorios: ${missing.join(", ")}.`, 409);
+    }
+
+    await request.update({ status: "submitted" });
+    return res.json({ code: 1, message: "Prealta enviada para revisión.", data: { id: request.id, status: request.status } });
   } catch (error) { next(error); }
 };
 
@@ -227,4 +258,4 @@ const resetBankValidation = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-module.exports = { saveMyRequest, getMyRequest, saveDocument, blockDocument, softDeleteDocument, updateBankAccount, listCfoBankAccounts, blockBankAccount, validateBankAccount, resetBankValidation };
+module.exports = { saveMyRequest, getMyRequest, saveDocument, submitMyRequest, blockDocument, softDeleteDocument, updateBankAccount, listCfoBankAccounts, blockBankAccount, validateBankAccount, resetBankValidation };

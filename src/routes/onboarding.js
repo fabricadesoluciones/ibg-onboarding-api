@@ -4,7 +4,7 @@ const path = require("path");
 const multer = require("multer");
 const { authMiddleware } = require("../middlewares/authMiddleware");
 const {
-  saveMyRequest, getMyRequest, saveDocument, blockDocument, softDeleteDocument,
+  saveMyRequest, getMyRequest, saveDocument, submitMyRequest, blockDocument, softDeleteDocument,
   updateBankAccount, listCfoBankAccounts, blockBankAccount, validateBankAccount, resetBankValidation,
 } = require("../controllers/onboarding");
 
@@ -23,6 +23,7 @@ const upload = multer({
 router.get("/requests/me", authMiddleware, getMyRequest);
 router.post("/requests", authMiddleware, saveMyRequest);
 router.post("/requests/:requestId/documents", authMiddleware, upload.single("document"), saveDocument);
+router.post("/requests/:requestId/submit", authMiddleware, submitMyRequest);
 router.patch("/requests/:requestId/documents/:documentId/block", authMiddleware, blockDocument);
 router.delete("/requests/:requestId/documents/:documentId", authMiddleware, softDeleteDocument);
 router.put("/requests/:requestId/bank-accounts/:accountId", authMiddleware, updateBankAccount);
