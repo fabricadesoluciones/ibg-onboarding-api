@@ -372,8 +372,17 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   const normalizedEmail = String(email).trim().toLowerCase();
-  const exists = await User.findOne({ where: { email: normalizedEmail } });
+  const exists = await User.findOne({
+    where: { email: normalizedEmail },
+    paranoid: false,
+  });
   if (exists) {
+    if (exists.deleted_at) {
+      throw new AppError(
+        "Este usuario está en Eliminados. Ve a Recuperar para restaurarlo.",
+        409
+      );
+    }
     throw new AppError("El email ya está registrado", 409);
   }
 
@@ -494,8 +503,17 @@ const postUser = async (req, res) => {
 
   try {
     const normalizedEmail = String(email).trim().toLowerCase();
-    const existingUser = await User.findOne({ where: { email: normalizedEmail } });
+    const existingUser = await User.findOne({
+      where: { email: normalizedEmail },
+      paranoid: false,
+    });
     if (existingUser) {
+      if (existingUser.deleted_at) {
+        throw new AppError(
+          "Este usuario está en Eliminados. Ve a Recuperar para restaurarlo.",
+          409
+        );
+      }
       throw new AppError("El email ya está registrado", 409);
     }
 
