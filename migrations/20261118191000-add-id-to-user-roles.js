@@ -13,20 +13,14 @@ module.exports = {
 
     const columns = await queryInterface.describeTable('user_roles');
     if (!columns.id) {
-      const [primaryKey] = await queryInterface.sequelize.query(
-        "SHOW INDEX FROM user_roles WHERE Key_name = 'PRIMARY'"
-      );
-
-      if (primaryKey.length) {
-        await queryInterface.sequelize.query('ALTER TABLE user_roles DROP PRIMARY KEY');
-      }
-
+      // La llave primaria compuesta (user_id, role_id) también soporta las
+      // llaves foráneas existentes. Se conserva y se agrega id como índice
+      // único, suficiente para el modelo Sequelize que lo consulta.
       await queryInterface.addColumn('user_roles', 'id', {
         type: Sequelize.BIGINT.UNSIGNED,
         allowNull: false,
         autoIncrement: true,
-        primaryKey: true,
-        first: true,
+        unique: true,
       });
     }
 
