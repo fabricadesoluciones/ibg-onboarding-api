@@ -3,6 +3,9 @@ const router = express.Router();
 
 const {
   migrateDatabase,
+  migrateOnboardingRequests,
+  migrateOnboardingDocuments,
+  migrateOnboardingBankCfoFlow,
   migrateRolePermissions,
   migrateCompaniesAndUserCompanies,
   migrateProviderAuthFields,
@@ -17,6 +20,9 @@ const {
 } = require("../controllers/dev");
 
 router.post("/migrate", migrateDatabase);
+router.post("/migrate-onboarding-requests", migrateOnboardingRequests);
+router.post("/migrate-onboarding-documents", migrateOnboardingDocuments);
+router.post("/migrate-onboarding-bank-cfo-flow", migrateOnboardingBankCfoFlow);
 router.post("/migrate-role-permissions", migrateRolePermissions);
 router.post("/migrate-companies-user-companies", migrateCompaniesAndUserCompanies);
 router.post("/migrate-provider-auth-fields", migrateProviderAuthFields);

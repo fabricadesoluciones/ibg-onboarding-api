@@ -113,6 +113,78 @@ const runSpecificMigration = (migrationFileName) =>
     );
   });
 
+const migrateSpecific = (migrationFileName, successMessage) => asyncHandler(async (req, res) => {
+  if (!isDevelopmentEnvironment()) {
+    throw new AppError(
+      "Las migraciones por endpoint solo se pueden ejecutar en entornos de desarrollo/local",
+      403
+    );
+  }
+
+  if (migrationInProgress) {
+    return res.status(409).json({
+      code: 0,
+      warning: true,
+      message: "Ya hay una ejecucion de migraciones en curso",
+    });
+  }
+
+  migrationInProgress = true;
+
+  try {
+    const { stdout, stderr } = await runSpecificMigration(migrationFileName);
+    const output = [stdout, stderr].filter(Boolean).join("\n").trim();
+
+    logger.info("Specific migration executed from endpoint", {
+      method: req.method,
+      url: req.originalUrl,
+      migrationFileName,
+    });
+
+    return res.status(200).json({
+      code: 1,
+      message: successMessage,
+      data: { migration: migrationFileName, output },
+    });
+  } catch (error) {
+    const output = [error.stdout, error.stderr]
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+
+    logger.warn("Specific migration failed from endpoint", {
+      method: req.method,
+      url: req.originalUrl,
+      migrationFileName,
+      message: error.message,
+    });
+
+    return res.status(200).json({
+      code: 0,
+      warning: true,
+      message: "Advertencia: no se pudo ejecutar la migracion",
+      details: { error: error.message, output: output || null },
+    });
+  } finally {
+    migrationInProgress = false;
+  }
+});
+
+const migrateOnboardingRequests = migrateSpecific(
+  "20261111120000-create-provider-onboarding-requests.js",
+  "Migracion de solicitudes de onboarding ejecutada correctamente"
+);
+
+const migrateOnboardingDocuments = migrateSpecific(
+  "20261112153000-create-provider-onboarding-documents.js",
+  "Migracion de documentos de onboarding ejecutada correctamente"
+);
+
+const migrateOnboardingBankCfoFlow = migrateSpecific(
+  "20261112160000-add-document-blocking-and-bank-cfo-flow.js",
+  "Migracion de flujo bancario y CFO de onboarding ejecutada correctamente"
+);
+
 const migrateDatabase = asyncHandler(async (req, res) => {
   if (!isDevelopmentEnvironment()) {
     throw new AppError(
@@ -872,6 +944,9 @@ const migrateUserRoles = asyncHandler(async (req, res) => {
 
 module.exports = {
   migrateDatabase,
+  migrateOnboardingRequests,
+  migrateOnboardingDocuments,
+  migrateOnboardingBankCfoFlow,
   migrateRolePermissions,
   migrateCompaniesAndUserCompanies,
   migrateProviderAuthFields,
