@@ -115,6 +115,91 @@ const runSpecificMigration = (migrationFileName) =>
     );
   });
 
+const repairOnboardingRequests = async (queryInterface) => {
+  await queryInterface.createTable("provider_onboarding_requests", {
+    id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, allowNull: false, primaryKey: true },
+    user_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false, unique: true },
+    supplier_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: true },
+    scope: { type: Sequelize.ENUM("nacional", "internacional"), allowNull: false },
+    request_type: { type: Sequelize.ENUM("alta", "cambio"), allowNull: false, defaultValue: "alta" },
+    person_type: { type: Sequelize.ENUM("fisica", "moral", "gob"), allowNull: false },
+    legal_name: { type: Sequelize.STRING(255), allowNull: false },
+    tax_id: { type: Sequelize.STRING(50), allowNull: false },
+    status: { type: Sequelize.ENUM("draft", "documents_pending", "submitted", "approved", "rejected"), allowNull: false, defaultValue: "documents_pending" },
+    form_data: { type: Sequelize.JSON, allowNull: false },
+    contacts: { type: Sequelize.JSON, allowNull: false },
+    created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal("CURRENT_TIMESTAMP") },
+    updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal("CURRENT_TIMESTAMP") },
+    deleted_at: { type: Sequelize.DATE, allowNull: true },
+  });
+  await queryInterface.addIndex("provider_onboarding_requests", ["supplier_id"]);
+  await queryInterface.addIndex("provider_onboarding_requests", ["tax_id"]);
+};
+
+const repairOnboardingDocuments = async (queryInterface) => {
+  await queryInterface.createTable("provider_onboarding_documents", {
+    id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, allowNull: false, primaryKey: true },
+    onboarding_request_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false },
+    document_type: { type: Sequelize.STRING(50), allowNull: false },
+    original_name: { type: Sequelize.STRING(255), allowNull: true },
+    file_path: { type: Sequelize.STRING(500), allowNull: true },
+    mime_type: { type: Sequelize.STRING(100), allowNull: true },
+    file_size: { type: Sequelize.INTEGER.UNSIGNED, allowNull: true },
+    valid_from: { type: Sequelize.DATEONLY, allowNull: true },
+    valid_until: { type: Sequelize.DATEONLY, allowNull: true },
+    is_indefinite: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false },
+    not_applicable: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false },
+    not_applicable_reason: { type: Sequelize.TEXT, allowNull: true },
+    validation_status: { type: Sequelize.ENUM("pending", "approved", "rejected"), allowNull: false, defaultValue: "pending" },
+    created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal("CURRENT_TIMESTAMP") },
+    updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal("CURRENT_TIMESTAMP") },
+    deleted_at: { type: Sequelize.DATE, allowNull: true },
+  });
+  await queryInterface.addIndex("provider_onboarding_documents", ["onboarding_request_id", "document_type"], { name: "idx_onb_doc_request_type" });
+};
+
+const addColumnIfMissing = async (queryInterface, tableName, columnName, definition) => {
+  const columns = await queryInterface.describeTable(tableName);
+  if (!columns[columnName]) await queryInterface.addColumn(tableName, columnName, definition);
+};
+
+const repairOnboardingBankCfoFlow = async (queryInterface) => {
+  await addColumnIfMissing(queryInterface, "provider_onboarding_documents", "is_blocked", { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false });
+  await addColumnIfMissing(queryInterface, "provider_onboarding_documents", "blocked_reason", { type: Sequelize.STRING(500), allowNull: true });
+  await addColumnIfMissing(queryInterface, "provider_onboarding_documents", "blocked_at", { type: Sequelize.DATE, allowNull: true });
+  await queryInterface.createTable("provider_bank_accounts", {
+    id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, allowNull: false, primaryKey: true },
+    onboarding_request_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false },
+    bank_name: { type: Sequelize.STRING(150), allowNull: false },
+    bank_country: { type: Sequelize.STRING(100), allowNull: true },
+    branch: { type: Sequelize.STRING(100), allowNull: true },
+    reference: { type: Sequelize.STRING(255), allowNull: true },
+    account_number: { type: Sequelize.STRING(50), allowNull: false },
+    clabe_iban: { type: Sequelize.STRING(80), allowNull: false },
+    is_primary: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: true },
+    validation_status: { type: Sequelize.ENUM("pending_validation", "validated", "blocked"), allowNull: false, defaultValue: "pending_validation" },
+    validated_at: { type: Sequelize.DATE, allowNull: true },
+    validated_by_user_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: true },
+    is_blocked: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false },
+    blocked_reason: { type: Sequelize.STRING(500), allowNull: true },
+    blocked_at: { type: Sequelize.DATE, allowNull: true },
+    blocked_by_user_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: true },
+    validation_reset_reason: { type: Sequelize.STRING(500), allowNull: true },
+    validation_reset_at: { type: Sequelize.DATE, allowNull: true },
+    created_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal("CURRENT_TIMESTAMP") },
+    updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal("CURRENT_TIMESTAMP") },
+    deleted_at: { type: Sequelize.DATE, allowNull: true },
+  });
+  await queryInterface.addIndex("provider_bank_accounts", ["onboarding_request_id"], { name: "idx_bank_account_request" });
+  await queryInterface.addIndex("provider_bank_accounts", ["validation_status"], { name: "idx_bank_account_validation" });
+};
+
+const schemaRepairs = {
+  "20261111120000-create-provider-onboarding-requests.js": repairOnboardingRequests,
+  "20261112153000-create-provider-onboarding-documents.js": repairOnboardingDocuments,
+  "20261112160000-add-document-blocking-and-bank-cfo-flow.js": repairOnboardingBankCfoFlow,
+};
+
 const ensureMigrationTables = async (migrationFileName, requiredTables) => {
   if (!requiredTables.length) return false;
 
@@ -127,8 +212,15 @@ const ensureMigrationTables = async (migrationFileName, requiredTables) => {
 
   // SequelizeMeta puede decir que una migracion se ejecuto aunque la tabla se
   // haya eliminado o nunca se haya creado. Reparamos el esquema real.
-  const migration = require(path.resolve(__dirname, "../../migrations", migrationFileName));
-  await migration.up(queryInterface, Sequelize);
+  try {
+    const migration = require(path.resolve(__dirname, "../../migrations", migrationFileName));
+    await migration.up(queryInterface, Sequelize);
+  } catch (error) {
+    const repair = schemaRepairs[migrationFileName];
+    const migrationFileMissing = error.code === "MODULE_NOT_FOUND" && error.message.includes("/migrations/");
+    if (!repair || !migrationFileMissing) throw error;
+    await repair(queryInterface);
+  }
 
   const repairedTables = await queryInterface.showAllTables();
   const repairedNames = new Set(repairedTables.map((table) => String(table).toLowerCase()));
