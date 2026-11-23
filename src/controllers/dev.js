@@ -1,8 +1,10 @@
 const path = require("path");
 const { execFile } = require("child_process");
+const Sequelize = require("sequelize");
 const asyncHandler = require("../utils/asyncHandler");
 const AppError = require("../utils/AppError");
 const logger = require("../config/logger");
+const { sequelize } = require("../models/connection");
 
 let migrationInProgress = false;
 
@@ -113,7 +115,32 @@ const runSpecificMigration = (migrationFileName) =>
     );
   });
 
-const migrateSpecific = (migrationFileName, successMessage) => asyncHandler(async (req, res) => {
+const ensureMigrationTables = async (migrationFileName, requiredTables) => {
+  if (!requiredTables.length) return false;
+
+  const queryInterface = sequelize.getQueryInterface();
+  const existingTables = await queryInterface.showAllTables();
+  const existingNames = new Set(existingTables.map((table) => String(table).toLowerCase()));
+  const missingTables = requiredTables.filter((table) => !existingNames.has(table.toLowerCase()));
+
+  if (!missingTables.length) return false;
+
+  // SequelizeMeta puede decir que una migracion se ejecuto aunque la tabla se
+  // haya eliminado o nunca se haya creado. Reparamos el esquema real.
+  const migration = require(path.resolve(__dirname, "../../migrations", migrationFileName));
+  await migration.up(queryInterface, Sequelize);
+
+  const repairedTables = await queryInterface.showAllTables();
+  const repairedNames = new Set(repairedTables.map((table) => String(table).toLowerCase()));
+  const stillMissing = requiredTables.filter((table) => !repairedNames.has(table.toLowerCase()));
+  if (stillMissing.length) {
+    throw new Error(`La migracion no creo las tablas requeridas: ${stillMissing.join(", ")}`);
+  }
+
+  return true;
+};
+
+const migrateSpecific = (migrationFileName, successMessage, requiredTables = []) => asyncHandler(async (req, res) => {
   if (!isDevelopmentEnvironment()) {
     throw new AppError(
       "Las migraciones por endpoint solo se pueden ejecutar en entornos de desarrollo/local",
@@ -133,7 +160,11 @@ const migrateSpecific = (migrationFileName, successMessage) => asyncHandler(asyn
 
   try {
     const { stdout, stderr } = await runSpecificMigration(migrationFileName);
-    const output = [stdout, stderr].filter(Boolean).join("\n").trim();
+    const repaired = await ensureMigrationTables(migrationFileName, requiredTables);
+    const output = [stdout, stderr, repaired ? "Esquema reparado porque faltaban tablas registradas como migradas." : null]
+      .filter(Boolean)
+      .join("\n")
+      .trim();
 
     logger.info("Specific migration executed from endpoint", {
       method: req.method,
@@ -172,17 +203,20 @@ const migrateSpecific = (migrationFileName, successMessage) => asyncHandler(asyn
 
 const migrateOnboardingRequests = migrateSpecific(
   "20261111120000-create-provider-onboarding-requests.js",
-  "Migracion de solicitudes de onboarding ejecutada correctamente"
+  "Migracion de solicitudes de onboarding ejecutada correctamente",
+  ["provider_onboarding_requests"]
 );
 
 const migrateOnboardingDocuments = migrateSpecific(
   "20261112153000-create-provider-onboarding-documents.js",
-  "Migracion de documentos de onboarding ejecutada correctamente"
+  "Migracion de documentos de onboarding ejecutada correctamente",
+  ["provider_onboarding_documents"]
 );
 
 const migrateOnboardingBankCfoFlow = migrateSpecific(
   "20261112160000-add-document-blocking-and-bank-cfo-flow.js",
-  "Migracion de flujo bancario y CFO de onboarding ejecutada correctamente"
+  "Migracion de flujo bancario y CFO de onboarding ejecutada correctamente",
+  ["provider_bank_accounts"]
 );
 
 const migrateDatabase = asyncHandler(async (req, res) => {
