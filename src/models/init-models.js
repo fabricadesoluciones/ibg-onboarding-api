@@ -22,6 +22,7 @@ const _payment_complements = require("./payment_complements");
 const _provider_onboarding_requests = require("./provider_onboarding_requests");
 const _provider_onboarding_documents = require("./provider_onboarding_documents");
 const _provider_bank_accounts = require("./provider_bank_accounts");
+const _provider_pre_registrations = require("./provider_pre_registrations");
 const _positions = require("./positions");
 const _projects = require("./projects");
 const _purchase_order_lines = require("./purchase_order_lines");
@@ -60,6 +61,7 @@ function initModels(sequelize) {
   const provider_onboarding_requests = _provider_onboarding_requests(sequelize, DataTypes);
   const provider_onboarding_documents = _provider_onboarding_documents(sequelize, DataTypes);
   const provider_bank_accounts = _provider_bank_accounts(sequelize, DataTypes);
+  const provider_pre_registrations = _provider_pre_registrations(sequelize, DataTypes);
   const positions = _positions(sequelize, DataTypes);
   const projects = _projects(sequelize, DataTypes);
   const purchase_order_lines = _purchase_order_lines(sequelize, DataTypes);
@@ -171,6 +173,8 @@ function initModels(sequelize) {
     as: "provider_onboarding_requests",
     foreignKey: "user_id",
   });
+  provider_pre_registrations.belongsTo(users, { as: "invited_by", foreignKey: "invited_by_user_id" });
+  provider_pre_registrations.belongsTo(users, { as: "provider_user", foreignKey: "provider_user_id" });
   provider_onboarding_requests.belongsTo(suppliers, {
     as: "supplier",
     foreignKey: "supplier_id",
@@ -216,6 +220,7 @@ function initModels(sequelize) {
     provider_onboarding_requests,
     provider_onboarding_documents,
     provider_bank_accounts,
+    provider_pre_registrations,
     positions,
     projects,
     purchase_order_lines,

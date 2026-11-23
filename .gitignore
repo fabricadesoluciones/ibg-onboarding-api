@@ -4,6 +4,7 @@ node_modules/
 migrations/*
 !migrations/20261118190000-create-user-roles.js
 !migrations/20261118191000-add-id-to-user-roles.js
+!migrations/20261123180000-create-provider-pre-registrations.js
 postman/
 .env
 logs/*

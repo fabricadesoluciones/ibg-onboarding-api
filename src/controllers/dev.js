@@ -311,6 +311,12 @@ const migrateOnboardingBankCfoFlow = migrateSpecific(
   ["provider_bank_accounts"]
 );
 
+const migrateProviderPreRegistrations = migrateSpecific(
+  "20261123180000-create-provider-pre-registrations.js",
+  "Migracion de prealtas de proveedores ejecutada correctamente",
+  ["provider_pre_registrations"]
+);
+
 const migrateDatabase = asyncHandler(async (req, res) => {
   if (!isDevelopmentEnvironment()) {
     throw new AppError(
@@ -1073,6 +1079,7 @@ module.exports = {
   migrateOnboardingRequests,
   migrateOnboardingDocuments,
   migrateOnboardingBankCfoFlow,
+  migrateProviderPreRegistrations,
   migrateRolePermissions,
   migrateCompaniesAndUserCompanies,
   migrateProviderAuthFields,

@@ -7,6 +7,7 @@ const {
   saveMyRequest, getMyRequest, saveDocument, submitMyRequest, blockDocument, softDeleteDocument,
   updateBankAccount, listCfoBankAccounts, blockBankAccount, validateBankAccount, resetBankValidation,
 } = require("../controllers/onboarding");
+const { listPreRegistrations, createPreRegistration, sendPreRegistration, cancelPreRegistration } = require("../controllers/preRegistrations");
 
 const router = express.Router();
 const uploadDirectory = path.join(process.cwd(), "storage", "onboarding");
@@ -21,6 +22,10 @@ const upload = multer({
 });
 
 router.get("/requests/me", authMiddleware, getMyRequest);
+router.get("/pre-registrations", authMiddleware, listPreRegistrations);
+router.post("/pre-registrations", authMiddleware, createPreRegistration);
+router.post("/pre-registrations/:id/send", authMiddleware, sendPreRegistration);
+router.post("/pre-registrations/:id/cancel", authMiddleware, cancelPreRegistration);
 router.post("/requests", authMiddleware, saveMyRequest);
 router.post("/requests/:requestId/documents", authMiddleware, upload.single("document"), saveDocument);
 router.post("/requests/:requestId/submit", authMiddleware, submitMyRequest);
