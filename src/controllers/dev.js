@@ -323,6 +323,28 @@ const migrateOnboardingDocumentRules = migrateSpecific(
   ["onboarding_document_rules"]
 );
 
+const migrateOnboardingDocumentValidation = asyncHandler(async (req, res) => {
+  if (!isDevelopmentEnvironment()) {
+    throw new AppError("Las migraciones por endpoint solo se pueden ejecutar en entornos de desarrollo/local", 403);
+  }
+  if (migrationInProgress) return res.status(409).json({ code: 0, message: "Ya hay una ejecución de migraciones en curso" });
+  migrationInProgress = true;
+  try {
+    const queryInterface = sequelize.getQueryInterface();
+    const table = "provider_onboarding_documents";
+    await addColumnIfMissing(queryInterface, table, "validated_by_user_id", { type: Sequelize.BIGINT.UNSIGNED, allowNull: true });
+    await addColumnIfMissing(queryInterface, table, "validated_at", { type: Sequelize.DATE, allowNull: true });
+    await addColumnIfMissing(queryInterface, table, "validation_notes", { type: Sequelize.TEXT, allowNull: true });
+    const indexes = await queryInterface.showIndex(table);
+    if (!indexes.some((index) => index.name === "idx_onb_doc_validation_status")) {
+      await queryInterface.addIndex(table, ["validation_status"], { name: "idx_onb_doc_validation_status" });
+    }
+    return res.json({ code: 1, message: "Migración de validación documental ejecutada correctamente." });
+  } finally {
+    migrationInProgress = false;
+  }
+});
+
 const migrateDatabase = asyncHandler(async (req, res) => {
   if (!isDevelopmentEnvironment()) {
     throw new AppError(
@@ -1087,6 +1109,7 @@ module.exports = {
   migrateOnboardingBankCfoFlow,
   migrateProviderPreRegistrations,
   migrateOnboardingDocumentRules,
+  migrateOnboardingDocumentValidation,
   migrateRolePermissions,
   migrateCompaniesAndUserCompanies,
   migrateProviderAuthFields,
