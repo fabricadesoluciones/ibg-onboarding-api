@@ -60,14 +60,6 @@ const authMiddleware = async (req, res, next) => {
       return;
     }
 
-    if (user.temporary_password && dataToken.portal_type === "proveedor") {
-      return res.status(403).json({
-        code: -1,
-        message: "FIRST_ACCESS_REQUIRED",
-        first_access_required: true,
-      });
-    }
-
     next();
   } catch (err) {
     error(res, "Unauthorized", 401);

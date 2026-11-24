@@ -7,6 +7,7 @@ const {
   migrateOnboardingDocuments,
   migrateOnboardingBankCfoFlow,
   migrateProviderPreRegistrations,
+  migrateOnboardingDocumentRules,
   migrateRolePermissions,
   migrateCompaniesAndUserCompanies,
   migrateProviderAuthFields,
@@ -25,6 +26,7 @@ router.post("/migrate-onboarding-requests", migrateOnboardingRequests);
 router.post("/migrate-onboarding-documents", migrateOnboardingDocuments);
 router.post("/migrate-onboarding-bank-cfo-flow", migrateOnboardingBankCfoFlow);
 router.post("/migrate-provider-pre-registrations", migrateProviderPreRegistrations);
+router.post("/migrate-onboarding-document-rules", migrateOnboardingDocumentRules);
 router.post("/migrate-role-permissions", migrateRolePermissions);
 router.post("/migrate-companies-user-companies", migrateCompaniesAndUserCompanies);
 router.post("/migrate-provider-auth-fields", migrateProviderAuthFields);

@@ -3,8 +3,10 @@ const fs = require("fs");
 const path = require("path");
 const multer = require("multer");
 const { authMiddleware } = require("../middlewares/authMiddleware");
+const { listDocumentRules, updateDocumentRules } = require("../controllers/documentRules");
+const { listDocumentValidationRequests, getDocumentValidation, decideDocumentValidation } = require("../controllers/documentValidations");
 const {
-  saveMyRequest, getMyRequest, saveDocument, submitMyRequest, blockDocument, softDeleteDocument,
+  saveMyRequest, getMyRequest, listOnboardingRequests, getOnboardingRequest, updateOnboardingRequestInternal, saveDocument, saveDocumentsBatch, submitMyRequest, blockDocument, softDeleteDocument,
   updateBankAccount, listCfoBankAccounts, blockBankAccount, validateBankAccount, resetBankValidation,
 } = require("../controllers/onboarding");
 const { listPreRegistrations, createPreRegistration, sendPreRegistration, cancelPreRegistration } = require("../controllers/preRegistrations");
@@ -22,12 +24,21 @@ const upload = multer({
 });
 
 router.get("/requests/me", authMiddleware, getMyRequest);
+router.get("/document-rules", authMiddleware, listDocumentRules);
+router.put("/document-rules", authMiddleware, updateDocumentRules);
+router.get("/document-validations", authMiddleware, listDocumentValidationRequests);
+router.get("/document-validations/:requestId", authMiddleware, getDocumentValidation);
+router.patch("/document-validations/:requestId/documents/:documentId", authMiddleware, decideDocumentValidation);
+router.get("/requests", authMiddleware, listOnboardingRequests);
+router.get("/requests/:requestId", authMiddleware, getOnboardingRequest);
+router.put("/requests/:requestId", authMiddleware, updateOnboardingRequestInternal);
 router.get("/pre-registrations", authMiddleware, listPreRegistrations);
 router.post("/pre-registrations", authMiddleware, createPreRegistration);
 router.post("/pre-registrations/:id/send", authMiddleware, sendPreRegistration);
 router.post("/pre-registrations/:id/cancel", authMiddleware, cancelPreRegistration);
 router.post("/requests", authMiddleware, saveMyRequest);
 router.post("/requests/:requestId/documents", authMiddleware, upload.single("document"), saveDocument);
+router.post("/requests/:requestId/documents/batch", authMiddleware, upload.array("documents", 20), saveDocumentsBatch);
 router.post("/requests/:requestId/submit", authMiddleware, submitMyRequest);
 router.patch("/requests/:requestId/documents/:documentId/block", authMiddleware, blockDocument);
 router.delete("/requests/:requestId/documents/:documentId", authMiddleware, softDeleteDocument);

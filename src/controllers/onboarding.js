@@ -128,6 +128,49 @@ const getMyRequest = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+const listOnboardingRequests = async (req, res, next) => {
+  try {
+    if (req.user.portal_type !== "interno") return fail(res, "Esta operación requiere acceso interno.", 403);
+    const scope = stringValue(req.query.scope);
+    const where = ["nacional", "internacional"].includes(scope) ? { scope } : {};
+    const requests = await OnboardingRequest.findAll({
+      where,
+      include: [
+        { model: OnboardingDocument, as: "documents" },
+        { model: BankAccount, as: "bank_accounts" },
+        { model: User, as: "user", attributes: ["id", "name", "email", "status"] },
+      ],
+      order: [["updated_at", "DESC"]],
+    });
+    return res.json({ code: 1, message: "OK", data: requests });
+  } catch (error) { next(error); }
+};
+
+const getOnboardingRequest = async (req, res, next) => {
+  try {
+    if (req.user.portal_type !== "interno") return fail(res, "Esta operación requiere acceso interno.", 403);
+    const request = await OnboardingRequest.findByPk(req.params.requestId, {
+      include: [{ model: OnboardingDocument, as: "documents" }, { model: BankAccount, as: "bank_accounts" }, { model: User, as: "user", attributes: ["id", "name", "email", "status"] }],
+    });
+    if (!request) return fail(res, "Solicitud no encontrada.", 404);
+    return res.json({ code: 1, message: "OK", data: request });
+  } catch (error) { next(error); }
+};
+
+const updateOnboardingRequestInternal = async (req, res, next) => {
+  try {
+    if (req.user.portal_type !== "interno") return fail(res, "Esta operación requiere acceso interno.", 403);
+    const request = await OnboardingRequest.findByPk(req.params.requestId);
+    if (!request) return fail(res, "Solicitud no encontrada.", 404);
+    const payload = req.body || {};
+    const parsed = validatePayload({ ...payload, scope: request.scope });
+    if (parsed.error) return fail(res, parsed.error);
+    await request.update({ legal_name: parsed.legalName, tax_id: parsed.taxId, person_type: parsed.personType, request_type: payload.requestType === "cambio" ? "cambio" : "alta", form_data: { ...payload, scope: request.scope, rfc: parsed.taxId, contacts: undefined }, contacts: parsed.contacts.map(({ id, ...contact }) => contact) });
+    await syncPrimaryBankAccount(request, payload);
+    return res.json({ code: 1, message: "Solicitud actualizada correctamente.", data: { id: request.id, status: request.status } });
+  } catch (error) { next(error); }
+};
+
 const saveDocument = async (req, res, next) => {
   try {
     const request = await getOwnedRequest(req.params.requestId, req.user.id);
@@ -145,6 +188,35 @@ const saveDocument = async (req, res, next) => {
     if (stringValue(req.body.validUntil) && stringValue(req.body.validFrom) && req.body.validUntil < req.body.validFrom) return fail(res, "La vigencia final no puede ser anterior a la inicial.");
     const document = await OnboardingDocument.create({ onboarding_request_id: request.id, document_type: documentType, original_name: req.file?.originalname || null, file_path: req.file ? `/storage/onboarding/${path.basename(req.file.filename)}` : null, mime_type: req.file?.mimetype || null, file_size: req.file?.size || null, valid_from: notApplicable ? null : req.body.validFrom, valid_until: notApplicable || isIndefinite ? null : req.body.validUntil, is_indefinite: notApplicable ? false : isIndefinite, not_applicable: notApplicable, not_applicable_reason: notApplicable ? stringValue(req.body.notApplicableReason) : null });
     return res.status(201).json({ code: 1, message: "Documento guardado correctamente.", data: document });
+  } catch (error) { next(error); }
+};
+
+const saveDocumentsBatch = async (req, res, next) => {
+  try {
+    const request = await getOwnedRequest(req.params.requestId, req.user.id);
+    if (!request) return fail(res, "La solicitud no existe o no pertenece al usuario autenticado.", 404);
+    let items;
+    try { items = JSON.parse(req.body.documents_metadata || "[]"); } catch { return fail(res, "documents_metadata debe ser un JSON válido."); }
+    if (!Array.isArray(items) || !items.length) return fail(res, "Incluye al menos un documento.");
+    const files = req.files || [];
+    const ordered = [...items].sort((a, b) => (a.documentType === "contrato" ? -1 : 0) - (b.documentType === "contrato" ? -1 : 0));
+    const saved = [];
+    for (const item of ordered) {
+      const documentType = stringValue(item.documentType);
+      const notApplicable = isTruthy(item.notApplicable);
+      const isIndefinite = isTruthy(item.isIndefinite);
+      const file = Number.isInteger(item.fileIndex) ? files[item.fileIndex] : null;
+      if (!DOCUMENT_TYPES.has(documentType)) return fail(res, `Tipo de documento no válido: ${documentType}.`);
+      if (documentType === "anexo" && !notApplicable && !(await getActiveContract(request.id))) return fail(res, "No puedes cargar un anexo: se requiere un contrato vigente y no bloqueado.", 409);
+      if (notApplicable && stringValue(item.notApplicableReason).length < 15) return fail(res, `La justificación de No aplica para ${documentType} debe tener al menos 15 caracteres.`);
+      if (!notApplicable && !file) return fail(res, `Adjunta el PDF para ${documentType}.`);
+      if (!notApplicable && file.mimetype !== "application/pdf") return fail(res, `Solo se permiten archivos PDF (${documentType}).`);
+      if (!notApplicable && !stringValue(item.validFrom)) return fail(res, `La fecha de inicio es obligatoria (${documentType}).`);
+      if (!notApplicable && !isIndefinite && !stringValue(item.validUntil)) return fail(res, `La fecha final o vigencia indefinida es obligatoria (${documentType}).`);
+      if (stringValue(item.validUntil) && stringValue(item.validFrom) && item.validUntil < item.validFrom) return fail(res, `La vigencia final no puede ser anterior a la inicial (${documentType}).`);
+      saved.push(await OnboardingDocument.create({ onboarding_request_id: request.id, document_type: documentType, original_name: file?.originalname || null, file_path: file ? `/storage/onboarding/${path.basename(file.filename)}` : null, mime_type: file?.mimetype || null, file_size: file?.size || null, valid_from: notApplicable ? null : item.validFrom, valid_until: notApplicable || isIndefinite ? null : item.validUntil, is_indefinite: notApplicable ? false : isIndefinite, not_applicable: notApplicable, not_applicable_reason: notApplicable ? stringValue(item.notApplicableReason) : null }));
+    }
+    return res.status(201).json({ code: 1, message: "Documentos guardados correctamente.", data: saved });
   } catch (error) { next(error); }
 };
 
@@ -260,4 +332,4 @@ const resetBankValidation = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-module.exports = { saveMyRequest, getMyRequest, saveDocument, submitMyRequest, blockDocument, softDeleteDocument, updateBankAccount, listCfoBankAccounts, blockBankAccount, validateBankAccount, resetBankValidation };
+module.exports = { saveMyRequest, getMyRequest, listOnboardingRequests, getOnboardingRequest, updateOnboardingRequestInternal, saveDocument, saveDocumentsBatch, submitMyRequest, blockDocument, softDeleteDocument, updateBankAccount, listCfoBankAccounts, blockBankAccount, validateBankAccount, resetBankValidation };

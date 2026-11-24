@@ -317,6 +317,12 @@ const migrateProviderPreRegistrations = migrateSpecific(
   ["provider_pre_registrations"]
 );
 
+const migrateOnboardingDocumentRules = migrateSpecific(
+  "20261123210000-create-onboarding-document-rules.js",
+  "Migracion de catálogo de documentos y vigencias ejecutada correctamente",
+  ["onboarding_document_rules"]
+);
+
 const migrateDatabase = asyncHandler(async (req, res) => {
   if (!isDevelopmentEnvironment()) {
     throw new AppError(
@@ -1080,6 +1086,7 @@ module.exports = {
   migrateOnboardingDocuments,
   migrateOnboardingBankCfoFlow,
   migrateProviderPreRegistrations,
+  migrateOnboardingDocumentRules,
   migrateRolePermissions,
   migrateCompaniesAndUserCompanies,
   migrateProviderAuthFields,
