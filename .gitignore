@@ -1,4 +1,5 @@
 node_modules/
+storage/
 # Las migraciones históricas son locales; esta debe viajar con el deploy para
 # reparar la tabla requerida por autenticación en DEV.
 migrations/*

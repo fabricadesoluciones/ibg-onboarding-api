@@ -70,6 +70,7 @@ class users extends Sequelize.Model {
       allowNull: true,
       defaultValue: 0
     },
+    is_cfo: { type: DataTypes.BOOLEAN, allowNull: true, defaultValue: null },
     is_active: {
       type: DataTypes.BOOLEAN,
       allowNull: true,

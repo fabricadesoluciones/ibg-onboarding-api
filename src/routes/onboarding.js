@@ -4,10 +4,10 @@ const path = require("path");
 const multer = require("multer");
 const { authMiddleware } = require("../middlewares/authMiddleware");
 const { listDocumentRules, updateDocumentRules } = require("../controllers/documentRules");
-const { listDocumentValidationRequests, getDocumentValidation, decideDocumentValidation } = require("../controllers/documentValidations");
+const { listDocumentValidationRequests, getPendingValidationSummary, getDocumentValidation, decideDocumentValidation } = require("../controllers/documentValidations");
 const {
-  saveMyRequest, getMyRequest, listOnboardingRequests, getOnboardingRequest, updateOnboardingRequestInternal, saveDocument, saveDocumentsBatch, submitMyRequest, blockDocument, softDeleteDocument,
-  updateBankAccount, listCfoBankAccounts, blockBankAccount, validateBankAccount, resetBankValidation,
+  saveMyRequest, getMyRequest, getRegistrationContext, listOnboardingRequests, getOnboardingRequest, updateOnboardingRequestInternal, saveDocument, saveDocumentsBatch, updateProviderDocument, submitMyRequest, blockDocument, softDeleteDocument,
+  updateBankAccount, updateProviderContact, listCfoBankAccounts, blockBankAccount, validateBankAccount, resetBankValidation,
 } = require("../controllers/onboarding");
 const { listPreRegistrations, createPreRegistration, sendPreRegistration, cancelPreRegistration } = require("../controllers/preRegistrations");
 
@@ -24,9 +24,11 @@ const upload = multer({
 });
 
 router.get("/requests/me", authMiddleware, getMyRequest);
+router.get("/registration-context", authMiddleware, getRegistrationContext);
 router.get("/document-rules", authMiddleware, listDocumentRules);
 router.put("/document-rules", authMiddleware, updateDocumentRules);
 router.get("/document-validations", authMiddleware, listDocumentValidationRequests);
+router.get("/document-validations/pending-summary", authMiddleware, getPendingValidationSummary);
 router.get("/document-validations/:requestId", authMiddleware, getDocumentValidation);
 router.patch("/document-validations/:requestId/documents/:documentId", authMiddleware, decideDocumentValidation);
 router.get("/requests", authMiddleware, listOnboardingRequests);
@@ -39,10 +41,12 @@ router.post("/pre-registrations/:id/cancel", authMiddleware, cancelPreRegistrati
 router.post("/requests", authMiddleware, saveMyRequest);
 router.post("/requests/:requestId/documents", authMiddleware, upload.single("document"), saveDocument);
 router.post("/requests/:requestId/documents/batch", authMiddleware, upload.array("documents", 20), saveDocumentsBatch);
+router.post("/requests/:requestId/documents/update", authMiddleware, upload.single("document"), updateProviderDocument);
 router.post("/requests/:requestId/submit", authMiddleware, submitMyRequest);
 router.patch("/requests/:requestId/documents/:documentId/block", authMiddleware, blockDocument);
 router.delete("/requests/:requestId/documents/:documentId", authMiddleware, softDeleteDocument);
 router.put("/requests/:requestId/bank-accounts/:accountId", authMiddleware, updateBankAccount);
+router.put("/requests/:requestId/contact", authMiddleware, updateProviderContact);
 
 router.get("/cfo/bank-accounts", authMiddleware, listCfoBankAccounts);
 router.patch("/cfo/bank-accounts/:accountId/block", authMiddleware, blockBankAccount);
