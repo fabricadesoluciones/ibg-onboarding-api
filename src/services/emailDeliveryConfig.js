@@ -7,6 +7,7 @@ const SEND_EMAIL_TEST_TO = process.env.SEND_EMAIL_TEST_TO || "";
 const TEST_EMAIL_RECIPIENTS = new Set([
   "jherrera@fabricadesoluciones.com",
   "notificacionesportalfd@ibgp.com.mx",
+  "ebecerril@ibgp.com.mx",
 ]);
 
 const isSendEmailTestEnabled = () =>
@@ -26,10 +27,11 @@ const resolveEmailRecipients = (recipient) => {
       );
     }
 
-    if (testRecipients.some((address) => !TEST_EMAIL_RECIPIENTS.has(address))) {
-      throw new Error("SEND_EMAIL_TEST_TO contiene destinatarios no autorizados");
-    }
-    return testRecipients;
+    const unauthorized = testRecipients.filter((address) => !TEST_EMAIL_RECIPIENTS.has(address));
+    if (unauthorized.length) console.warn("Destinatarios de prueba no autorizados:", unauthorized);
+    const authorized = testRecipients.filter((address) => TEST_EMAIL_RECIPIENTS.has(address));
+    if (!authorized.length) throw new Error("SEND_EMAIL_TEST_TO no contiene destinatarios autorizados");
+    return authorized;
   }
 
   return normalizedRecipient ? [normalizedRecipient] : [];

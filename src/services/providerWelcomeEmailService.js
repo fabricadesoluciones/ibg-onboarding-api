@@ -69,6 +69,7 @@ const getSesTransport = () => {
 
 const sendWithTransport = async (transport, payload) => {
   const info = await transport.sendMail(payload);
+  if (info.rejected?.length) throw new Error(`Destinatario rechazado: ${payload.to}`);
 
   return {
     delivered: true,
@@ -142,8 +143,8 @@ const sendProviderWelcomeEmail = async ({ email, temporaryPassword, loginUrl }) 
       });
       const results = await Promise.allSettled(recipients.map((to) => sendWithTransport(smtp, { ...payload, to })));
       const delivered = results.filter((result) => result.status === "fulfilled");
-      const failed = results.filter((result) => result.status === "rejected").map((result) => result.reason?.message || "Error de envío");
-      if (!delivered.length) throw new Error(failed.join("; ") || "No se pudo entregar el correo");
+      const failed = results.flatMap((result, index) => result.status === "rejected" ? [{ recipient: recipients[index], error: result.reason?.message || "Error de envío" }] : []);
+      if (!delivered.length) throw new Error(failed.map((item) => `${item.recipient}: ${item.error}`).join("; ") || "No se pudo entregar el correo");
       if (failed.length) logger.warn("Algunos destinatarios no recibieron la invitación", { recipients, failed });
       return { delivered: true, messageIds: delivered.map((result) => result.value.messageId), failed };
     }
@@ -155,8 +156,8 @@ const sendProviderWelcomeEmail = async ({ email, temporaryPassword, loginUrl }) 
     logger.info("Enviando correo de bienvenida de proveedor por SES", { to: recipients });
     const results = await Promise.allSettled(recipients.map((to) => sendWithTransport(getSesTransport(), { ...payload, to })));
     const delivered = results.filter((result) => result.status === "fulfilled");
-    const failed = results.filter((result) => result.status === "rejected").map((result) => result.reason?.message || "Error de envío");
-    if (!delivered.length) throw new Error(failed.join("; ") || "No se pudo entregar el correo");
+    const failed = results.flatMap((result, index) => result.status === "rejected" ? [{ recipient: recipients[index], error: result.reason?.message || "Error de envío" }] : []);
+    if (!delivered.length) throw new Error(failed.map((item) => `${item.recipient}: ${item.error}`).join("; ") || "No se pudo entregar el correo");
     if (failed.length) logger.warn("Algunos destinatarios no recibieron la invitación", { recipients, failed });
     return { delivered: true, messageIds: delivered.map((result) => result.value.messageId), failed };
   } catch (error) {
