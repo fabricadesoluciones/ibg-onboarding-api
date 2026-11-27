@@ -42,6 +42,7 @@ app.use(errorMiddleware);
 
 const models = initModels(sequelize);
 
+
 // Sincronizacion automatica de tablas deshabilitada por solicitud.
 // sequelize
 //   .sync({ alter: true })
